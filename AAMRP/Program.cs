@@ -282,6 +282,8 @@ class Program
     static async Task Start()
     {
        var currentSong = new SongData(null, null, null);
+       var objectUrl = "";
+       var i = 0;
         while (true)
         {
             var newSong = GetAppleMusicInfo();
@@ -312,12 +314,30 @@ class Program
                         SmallImageText = artist
                     }
                 });
-        
+
+                if (newSong.Album == currentSong.Album && i != 0)
+                {
+                    // avoid checking for animated cover again
+                    RpcClient.SetPresence(new RichPresence
+                    {
+                        Type = ActivityType.Listening,
+                        Details = song,
+                        State = artist,
+                        Assets = new Assets()
+                        {
+                            LargeImageKey = objectUrl,
+                            LargeImageText = album,
+                            SmallImageKey = result.ArtistUrl,
+                            SmallImageText = artist
+                        }
+                    });
+                    return;
+                }
                 var animatedUrl = await FetchAnimatedArtworkUrl(result.CollectionUrl);
                 if (animatedUrl != String.Empty)
                 {
                     Console.WriteLine(animatedUrl);
-                    var objectUrl = await ConvertToAvif(animatedUrl, $"{album}-{artist}");
+                    objectUrl = await ConvertToAvif(animatedUrl, $"{album}-{artist}");
                     if (objectUrl != String.Empty)
                     {
                         Console.WriteLine($"Updating RPC to {objectUrl}");
@@ -339,6 +359,7 @@ class Program
             }
 
             await Task.Delay(5000);
+            i++;
         }
     }
     
