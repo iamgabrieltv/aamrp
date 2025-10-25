@@ -284,83 +284,83 @@ class Program
        var currentSong = new SongData(null, null, null);
        var objectUrl = "";
        var i = 0;
-        while (true)
-        {
-            var newSong = GetAppleMusicInfo();
+       while (true)
+       {
+           var newSong = GetAppleMusicInfo();
 
-            if (newSong.Name == currentSong.Name)
-            {
-                Console.WriteLine($"Status unchanged. Current: {currentSong.Name}");
-            }
-            else
-            {
-                currentSong = newSong;
-                var song = currentSong.Name;
-                var album = currentSong.Album;
-                var artist = currentSong.Artist;
+           if (newSong.Name == currentSong.Name)
+           {
+               Console.WriteLine($"Status unchanged. Current: {currentSong.Name}");
+           }
+           else
+           {
+               currentSong = newSong;
+               var song = currentSong.Name;
+               var album = currentSong.Album;
+               var artist = currentSong.Artist;
                 
-                var result = await FetchArtworkUrl(song, album, artist);
-                // var artistUrl = await FetchArtistArtworkUrl(result.ArtistUrl);
-                RpcClient!.SetPresence(new RichPresence
-                {
-                    Type = ActivityType.Listening,
-                    Details = song,
-                    State = artist,
-                    Assets = new Assets()
-                    {
-                        LargeImageKey = result.AlbumArt,
-                        LargeImageText = album,
-                        SmallImageKey = result.ArtistUrl,
-                        SmallImageText = artist
-                    }
-                });
+               var result = await FetchArtworkUrl(song, album, artist);
+               // var artistUrl = await FetchArtistArtworkUrl(result.ArtistUrl);
+               RpcClient!.SetPresence(new RichPresence
+               {
+                   Type = ActivityType.Listening,
+                   Details = song,
+                   State = artist,
+                   Assets = new Assets()
+                   {
+                       LargeImageKey = result.AlbumArt,
+                       LargeImageText = album,
+                       SmallImageKey = result.ArtistUrl,
+                       SmallImageText = artist
+                   }
+               });
 
-                if (newSong.Album == currentSong.Album && i != 0)
-                {
-                    // avoid checking for animated cover again
-                    RpcClient.SetPresence(new RichPresence
-                    {
-                        Type = ActivityType.Listening,
-                        Details = song,
-                        State = artist,
-                        Assets = new Assets()
-                        {
-                            LargeImageKey = objectUrl,
-                            LargeImageText = album,
-                            SmallImageKey = result.ArtistUrl,
-                            SmallImageText = artist
-                        }
-                    });
-                    return;
-                }
-                var animatedUrl = await FetchAnimatedArtworkUrl(result.CollectionUrl);
-                if (animatedUrl != String.Empty)
-                {
-                    Console.WriteLine(animatedUrl);
-                    objectUrl = await ConvertToAvif(animatedUrl, $"{album}-{artist}");
-                    if (objectUrl != String.Empty)
-                    {
-                        Console.WriteLine($"Updating RPC to {objectUrl}");
-                        RpcClient.SetPresence(new RichPresence
-                        {
-                            Type = ActivityType.Listening,
-                            Details = song,
-                            State = artist,
-                            Assets = new Assets()
-                            {
-                                LargeImageKey = objectUrl,
-                                LargeImageText = album,
-                                SmallImageKey = result.ArtistUrl,
-                                SmallImageText = artist
-                            }
-                        });
-                    }
-                }
-            }
+               if (newSong.Album == currentSong.Album && i != 0)
+               {
+                   // avoid checking for animated cover again
+                   RpcClient.SetPresence(new RichPresence
+                   {
+                       Type = ActivityType.Listening,
+                       Details = song,
+                       State = artist,
+                       Assets = new Assets()
+                       {
+                           LargeImageKey = objectUrl,
+                           LargeImageText = album,
+                           SmallImageKey = result.ArtistUrl,
+                           SmallImageText = artist
+                       }
+                   });
+                   return;
+               }
+               var animatedUrl = await FetchAnimatedArtworkUrl(result.CollectionUrl);
+               if (animatedUrl != String.Empty)
+               {
+                   Console.WriteLine(animatedUrl);
+                   objectUrl = await ConvertToAvif(animatedUrl, $"{album}-{artist}");
+                   if (objectUrl != String.Empty)
+                   {
+                       Console.WriteLine($"Updating RPC to {objectUrl}");
+                       RpcClient.SetPresence(new RichPresence
+                       {
+                           Type = ActivityType.Listening,
+                           Details = song,
+                           State = artist,
+                           Assets = new Assets()
+                           {
+                               LargeImageKey = objectUrl,
+                               LargeImageText = album,
+                               SmallImageKey = result.ArtistUrl,
+                               SmallImageText = artist
+                           }
+                       });
+                   }
+               }
+           }
 
-            await Task.Delay(5000);
-            i++;
-        }
+           await Task.Delay(5000);
+           i++;
+       }
     }
     
     static void Main()
