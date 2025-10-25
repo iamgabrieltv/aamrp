@@ -55,7 +55,7 @@ class Program
         var request = new HttpRequestMessage(HttpMethod.Get, uri.Uri);
         request.Headers.Accept.ParseAdd("*/*");
         request.Headers.AcceptLanguage.ParseAdd("en-US,en;q=0.9");
-        request.Headers.Authorization = AuthenticationHeaderValue.Parse("eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6IldlYlBsYXlLaWQifQ.eyJpc3MiOiJBTVBXZWJQbGF5IiwiaWF0IjoxNzU5OTcwNjMxLCJleHAiOjE3NjcyMjgyMzEsInJvb3RfaHR0cHNfb3JpZ2luIjpbImFwcGxlLmNvbSJdfQ.2olNgPLuL51wQBjlYwZWslVBxqV65I921NlgdXHazA9DL_-zksa42Lr4aiGC0TV3SAe4vs9FSRtdKe9gTCCiwQ");
+        request.Headers.Authorization = AuthenticationHeaderValue.Parse("Bearer eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6IldlYlBsYXlLaWQifQ.eyJpc3MiOiJBTVBXZWJQbGF5IiwiaWF0IjoxNzU5OTcwNjMxLCJleHAiOjE3NjcyMjgyMzEsInJvb3RfaHR0cHNfb3JpZ2luIjpbImFwcGxlLmNvbSJdfQ.2olNgPLuL51wQBjlYwZWslVBxqV65I921NlgdXHazA9DL_-zksa42Lr4aiGC0TV3SAe4vs9FSRtdKe9gTCCiwQ");
         request.Headers.Add("Origin", "https://music.apple.com");
         
         // Make the request
@@ -63,22 +63,12 @@ class Program
         response.EnsureSuccessStatusCode();
         var jsonString = await response.Content.ReadAsStringAsync();
         var data = JObject.Parse(jsonString);
-        var songData = data["results"]![0];
-        try
-        {
-            songData = data["results"]?.First(s =>
-                s["collectionName"] != null &&
-                s["collectionName"]!.ToString().Equals(album, StringComparison.OrdinalIgnoreCase));
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine(ex.Message);
-        }
-        if (songData == null) throw new Exception("Song not found");
+        var songData = data["results"]?["song"]?["data"]?[0];
         Console.WriteLine("Done fetching");
-        var coverUrl = songData["artworkUrl100"]!.ToString().Replace("100x100", "512x512");
-        var artistUrl = songData["artistViewUrl"]!.ToString();
-        var collectionUrl = songData["collectionViewUrl"]!.ToString();
+
+        var coverUrl = songData?["attributes"]?["artwork"]?["url"]?.ToString().Replace("{w}x{h}bb.jpg", "512x512bb.jpg");
+        var artistUrl = songData?["relationships"]?["artists"]?["data"]?[0]?["attributes"]?["artwork"]?["url"]?.ToString().Replace("{w}x{h}bb.jpg", "512x512bb.jpg");
+        var collectionUrl = songData["attributes"]?["url"]?.ToString();
 
         return new ArtworkUrls
         {
@@ -88,7 +78,7 @@ class Program
         };
     }
 
-    static async Task<string> FetchArtistArtworkUrl(string artistUrl)
+    /*static async Task<string> FetchArtistArtworkUrl(string artistUrl)
     {
         Console.WriteLine("Fetching Artist Artwork...");
 
@@ -109,7 +99,7 @@ class Program
         }
         Console.WriteLine("Couldn't fetch Artist Artwork");
         return String.Empty;
-    }
+    }*/
 
     static async Task<string> FetchAnimatedArtworkUrl(string collectionUrl)
     {
@@ -308,7 +298,7 @@ class Program
                 var artist = currentSong.Artist;
                 
                 var result = await FetchArtworkUrl(song, album, artist);
-                var artistUrl = await FetchArtistArtworkUrl(result.ArtistUrl);
+                // var artistUrl = await FetchArtistArtworkUrl(result.ArtistUrl);
                 RpcClient!.SetPresence(new RichPresence
                 {
                     Type = ActivityType.Listening,
@@ -318,7 +308,7 @@ class Program
                     {
                         LargeImageKey = result.AlbumArt,
                         LargeImageText = album,
-                        SmallImageKey = artistUrl,
+                        SmallImageKey = result.ArtistUrl,
                         SmallImageText = artist
                     }
                 });
@@ -340,7 +330,7 @@ class Program
                             {
                                 LargeImageKey = objectUrl,
                                 LargeImageText = album,
-                                SmallImageKey = artistUrl,
+                                SmallImageKey = result.ArtistUrl,
                                 SmallImageText = artist
                             }
                         });
