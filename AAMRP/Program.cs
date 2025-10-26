@@ -30,11 +30,12 @@ class Program
         public required string CollectionUrl;
     }
 
-    private class SongData(string name, string artist, string album)
+    private class SongData(string name, string artist, string album, bool isPaused = false)
     {
-        public string Name = name;
-        public string Artist = artist;
-        public string Album = album;
+        public string? Name = name;
+        public string? Artist = artist;
+        public string? Album = album;
+        public bool IsPaused = isPaused;
     }
     
     static async Task<ArtworkUrls> FetchArtworkUrl(string song, string album, string artist)
@@ -248,7 +249,7 @@ class Program
         if (!isMiniPlayer && songFields.Length != 2)
         {
             Console.WriteLine(("nothing playing"));
-            return null;
+            return new SongData(null, null, null);
         }
 
         var songNameElement = songFields[0];
@@ -276,7 +277,11 @@ class Program
             songArtist = songSplit[0];
             songAlbum = songSplit[0];
         }
-        return new SongData(songName, songArtist, songAlbum);
+        
+        var playPauseButton = amSongPanel.FindFirstChild("TransportControl_PlayPauseStop");
+        var isPaused = playPauseButton!.Name == "Play";
+        
+        return new SongData(songName, songArtist, songAlbum, isPaused);
     }
 
     static async Task Start()
@@ -288,7 +293,7 @@ class Program
        {
            var newSong = GetAppleMusicInfo();
 
-           if (newSong.Name == currentSong.Name)
+           if (newSong.Name == currentSong.Name && newSong.IsPaused == currentSong.IsPaused)
            {
                Console.WriteLine($"Status unchanged. Current: {currentSong.Name}");
            }
@@ -298,6 +303,15 @@ class Program
                var song = currentSong.Name;
                var album = currentSong.Album;
                var artist = currentSong.Artist;
+
+               if (song == null || currentSong.IsPaused)
+               {
+                   Console.WriteLine("Nothing playing");
+                   RpcClient.ClearPresence();
+                   await Task.Delay(5000);
+                   i++;
+                   continue;
+               }
                 
                var result = await FetchArtworkUrl(song, album, artist);
                // var artistUrl = await FetchArtistArtworkUrl(result.ArtistUrl);
@@ -315,7 +329,7 @@ class Program
                    }
                });
 
-               if (newSong.Album == currentSong.Album && i != 0)
+               if (newSong.Album == currentSong.Album && i != 0 && objectUrl != "")
                {
                    // avoid checking for animated cover again
                    RpcClient.SetPresence(new RichPresence
@@ -331,7 +345,9 @@ class Program
                            SmallImageText = artist
                        }
                    });
-                   return;
+                   await Task.Delay(5000);
+                   i++;
+                   continue;
                }
                var animatedUrl = await FetchAnimatedArtworkUrl(result.CollectionUrl);
                if (animatedUrl != String.Empty)
@@ -379,6 +395,7 @@ class Program
         
         // Cleanup
         Console.ReadKey();
+        RpcClient!.ClearPresence();
         RpcClient.Dispose();
     }
 }
