@@ -425,7 +425,8 @@ class Program
                 throw new Exception($"osascript failed with exit code {process.ExitCode}: {error.Trim()}");
             }
 
-            string[] lines = result.Split(Environment.NewLine, StringSplitOptions.RemoveEmptyEntries);
+            var lines = result.Split(Environment.NewLine, StringSplitOptions.RemoveEmptyEntries)
+                .Select(s => s.Replace(Environment.NewLine, "")).ToArray();
             if (lines.Length < 3)
             {
                 return new SongData();
