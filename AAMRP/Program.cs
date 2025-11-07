@@ -312,6 +312,8 @@ class Program
                    i++;
                    continue;
                }
+               
+               if (!albumIsSame) RpcClient!.ClearPresence();
                 
                var result = await FetchArtworkUrl(song, album, artist);
                // var artistUrl = await FetchArtistArtworkUrl(result.ArtistUrl);
@@ -469,6 +471,8 @@ class Program
                    i++;
                    continue;
                }
+               
+               if (!albumIsSame) RpcClient!.ClearPresence();
                 
                var result = await FetchArtworkUrl(song, album, artist);
                // var artistUrl = await FetchArtistArtworkUrl(result.ArtistUrl);
