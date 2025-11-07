@@ -2,17 +2,19 @@
 
     <PropertyGroup>
         <OutputType>Exe</OutputType>
-        <TargetFramework>net9.0</TargetFramework>
+        <TargetFrameworks>net9.0-windows;net9.0-macos</TargetFrameworks>
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
+        <Configurations>Debug;Release;Windows;MacOS</Configurations>
+        <Platforms>AnyCPU;net9.0-windows;net9.0-macos</Platforms>
     </PropertyGroup>
 
     <ItemGroup>
-      <PackageReference Include="Accessibility" Version="4.6.0-preview3-27504-2" />
       <PackageReference Include="DiscordRichPresence" Version="1.6.1.70" />
-      <PackageReference Include="FlaUI.Core" Version="5.0.0" />
-      <PackageReference Include="FlaUI.UIA3" Version="5.0.0" />
       <PackageReference Include="HtmlAgilityPack" Version="1.12.4" />
+        <PackageReference Include="Accessibility" Version="4.6.0-preview3-27504-2" />
+        <PackageReference Include="FlaUI.Core" Version="5.0.0" />
+        <PackageReference Include="FlaUI.UIA3" Version="5.0.0" />
     </ItemGroup>
 
 </Project>

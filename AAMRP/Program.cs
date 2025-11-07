@@ -1,13 +1,12 @@
 ﻿using System.Diagnostics;
 using System.Net;
 using System.Net.Http.Headers;
-using System.Text.RegularExpressions;
 using System.Web;
 using DiscordRPC;
-using FlaUI.Core.AutomationElements;
-using FlaUI.UIA3;
 using Newtonsoft.Json.Linq;
 using HtmlAgilityPack;
+using FlaUI.Core.AutomationElements;
+using FlaUI.UIA3;
 
 namespace AAMRP;
 
@@ -30,7 +29,7 @@ class Program
         public required string CollectionUrl;
     }
 
-    private class SongData(string name, string artist, string album, bool isPaused = false)
+    private class SongData(string? name = null, string? artist = null, string? album = null, bool isPaused = false)
     {
         public string? Name = name;
         public string? Artist = artist;
@@ -195,13 +194,13 @@ class Program
         }
     }
 
-    static SongData GetAppleMusicInfo()
+    static SongData GetAppleMusicInfoWindows()
     {
         var amProcesses = Process.GetProcessesByName("AppleMusic");
         if (amProcesses.Length == 0)
         {
             Console.WriteLine("Couldn't find AppleMusic");
-            return null;
+            return new SongData();
         }
         var windows = new List<AutomationElement>();
         var automation = new UIA3Automation();
@@ -249,7 +248,7 @@ class Program
         if (!isMiniPlayer && songFields.Length != 2)
         {
             Console.WriteLine(("nothing playing"));
-            return new SongData(null, null, null);
+            return new SongData();
         }
 
         var songNameElement = songFields[0];
@@ -284,14 +283,14 @@ class Program
         return new SongData(songName, songArtist, songAlbum, isPaused);
     }
 
-    static async Task Start()
+    static async Task StartWindows()
     {
-       var currentSong = new SongData(null, null, null);
+       var currentSong = new SongData();
        var objectUrl = "";
        var i = 0;
        while (true)
        {
-           var newSong = GetAppleMusicInfo();
+           var newSong = GetAppleMusicInfoWindows();
 
            if (newSong.Name == currentSong.Name && newSong.IsPaused == currentSong.IsPaused)
            {
@@ -299,6 +298,7 @@ class Program
            }
            else
            {
+               var albumIsSame = currentSong.Album == newSong.Album;
                currentSong = newSong;
                var song = currentSong.Name;
                var album = currentSong.Album;
@@ -329,7 +329,164 @@ class Program
                    }
                });
 
-               if (newSong.Album == currentSong.Album && i != 0 && objectUrl != "")
+               if (albumIsSame && i != 0 && objectUrl != "")
+               {
+                   // avoid checking for animated cover again
+                   RpcClient.SetPresence(new RichPresence
+                   {
+                       Type = ActivityType.Listening,
+                       Details = song,
+                       State = artist,
+                       Assets = new Assets()
+                       {
+                           LargeImageKey = objectUrl,
+                           LargeImageText = album,
+                           SmallImageKey = result.ArtistUrl,
+                           SmallImageText = artist
+                       }
+                   });
+                   await Task.Delay(5000);
+                   i++;
+                   continue;
+               }
+               var animatedUrl = await FetchAnimatedArtworkUrl(result.CollectionUrl);
+               if (animatedUrl != String.Empty)
+               {
+                   Console.WriteLine(animatedUrl);
+                   objectUrl = await ConvertToAvif(animatedUrl, $"{album}-{artist}");
+                   if (objectUrl != String.Empty)
+                   {
+                       Console.WriteLine($"Updating RPC to {objectUrl}");
+                       RpcClient.SetPresence(new RichPresence
+                       {
+                           Type = ActivityType.Listening,
+                           Details = song,
+                           State = artist,
+                           Assets = new Assets()
+                           {
+                               LargeImageKey = objectUrl,
+                               LargeImageText = album,
+                               SmallImageKey = result.ArtistUrl,
+                               SmallImageText = artist
+                           }
+                       });
+                   }
+               }
+           }
+
+           await Task.Delay(5000);
+           i++;
+       }
+    }
+
+    static async Task<SongData> GetAppleMusicInfoMac()
+    {
+        /*const string appleScript = $"""
+                                    set output to ""
+                                    tell application "Music"
+                                        set t_name to name of current track
+                                        set t_artist to artist of current track
+                                        set t_album to album of current track
+                                        set output to "" & "
+                                    " & t_name & "
+                                    " & t_artist & "
+                                    " & t_album & "
+                                    "
+                                    end tell
+                                    return output
+                                    """;*/
+        
+        var startInfo = new ProcessStartInfo
+        {
+            FileName = "/usr/bin/osascript",
+            Arguments = $"{AppDomain.CurrentDomain.BaseDirectory + "native.scpt"}",
+            UseShellExecute = false,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            CreateNoWindow = true
+        };
+        
+        try
+        {
+            Process process = new Process { StartInfo = startInfo };
+            process.Start();
+            
+            string result = await process.StandardOutput.ReadToEndAsync();
+            result = result.Trim();
+            
+            string error = await process.StandardError.ReadToEndAsync();
+
+            await process.WaitForExitAsync();
+
+            if (process.ExitCode != 0)
+            {
+                throw new Exception($"osascript failed with exit code {process.ExitCode}: {error.Trim()}");
+            }
+
+            string[] lines = result.Split(Environment.NewLine, StringSplitOptions.RemoveEmptyEntries);
+            if (lines.Length < 3)
+            {
+                return new SongData();
+            }
+
+            var isPaused = lines[3] != "playing";
+            return new SongData(lines[0], lines[1], lines[2], isPaused);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"An error occurred: {ex.Message}");
+            return new SongData();
+        }
+    }
+    
+    static async Task StartMac()
+    {
+       var currentSong = new SongData();
+       var objectUrl = "";
+       var i = 0;
+       while (true)
+       {
+           var newSong = await GetAppleMusicInfoMac();
+           if (newSong.Name == null) newSong.IsPaused = true;
+
+           if (newSong.Name == currentSong.Name && newSong.IsPaused == currentSong.IsPaused)
+           {
+               Console.WriteLine($"Status unchanged. Current: {currentSong.Name}");
+           }
+           else
+           {
+               var albumIsSame = currentSong.Album == newSong.Album;
+               currentSong = newSong;
+               var song = currentSong.Name;
+               var album = currentSong.Album;
+               var artist = currentSong.Artist;
+
+               if (song == null || currentSong.IsPaused)
+               {
+                   Console.WriteLine("Nothing playing");
+                   RpcClient.ClearPresence();
+                   await Task.Delay(5000);
+                   i++;
+                   continue;
+               }
+                
+               var result = await FetchArtworkUrl(song, album, artist);
+               // var artistUrl = await FetchArtistArtworkUrl(result.ArtistUrl);
+               RpcClient!.SetPresence(new RichPresence
+               {
+                   Type = ActivityType.Listening,
+                   Details = song,
+                   State = artist,
+                   Assets = new Assets()
+                   {
+                       LargeImageKey = result.AlbumArt,
+                       LargeImageText = album,
+                       SmallImageKey = result.ArtistUrl,
+                       SmallImageText = artist
+                   }
+               });
+
+               if (albumIsSame && i != 0 && objectUrl != "")
                {
                    // avoid checking for animated cover again
                    RpcClient.SetPresence(new RichPresence
@@ -381,17 +538,21 @@ class Program
     
     static void Main()
     {
-        Console.WriteLine("Welcome to AAMRP!" + Environment.NewLine + "Animated Apple Music Rich Presence");
+        Console.WriteLine("Welcome to AAMRP!" + Environment.NewLine + "Animated Apple Music Rich Presence" + Environment.NewLine);
         Setup();
-        Thread staThread = new Thread(() =>
-        {
-            Start().Wait();
-        });
-        staThread.SetApartmentState(ApartmentState.STA);
-        staThread.IsBackground = true; 
-        staThread.Start();
-        
-        Console.WriteLine("Background polling thread started. Press any key to exit.");
+
+        #if WINDOWS
+            Thread staThread = new Thread(() =>
+            {
+                StartWindows().Wait();
+            });
+            staThread.SetApartmentState(ApartmentState.STA);
+            staThread.IsBackground = true; 
+            staThread.Start();
+            Console.WriteLine("Background polling thread started. Press any key to exit.");
+        #elif MACOS
+        Task backgroundTask = StartMac();
+        #endif
         
         // Cleanup
         Console.ReadKey();
