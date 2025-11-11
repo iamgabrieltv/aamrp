@@ -5,12 +5,10 @@ using System.Web;
 using DiscordRPC;
 using Newtonsoft.Json.Linq;
 using HtmlAgilityPack;
-using FlaUI.Core.AutomationElements;
-using FlaUI.UIA3;
 
 namespace AAMRP;
 
-class Program
+public class Program
 {
     private static DiscordRpcClient? RpcClient { get; set; }
     private static readonly HttpClient HttpClient = new HttpClient();
@@ -29,7 +27,7 @@ class Program
         public required string CollectionUrl;
     }
 
-    private class SongData(string? name = null, string? artist = null, string? album = null, bool isPaused = false)
+    public class SongData(string? name = null, string? artist = null, string? album = null, bool isPaused = false)
     {
         public string? Name = name;
         public string? Artist = artist;
@@ -194,95 +192,6 @@ class Program
         }
     }
 
-    static SongData GetAppleMusicInfoWindows()
-    {
-        var amProcesses = Process.GetProcessesByName("AppleMusic");
-        if (amProcesses.Length == 0)
-        {
-            Console.WriteLine("Couldn't find AppleMusic");
-            return new SongData();
-        }
-        var windows = new List<AutomationElement>();
-        var automation = new UIA3Automation();
-        var processId = amProcesses[0].Id;
-        windows = [.. automation.GetDesktop().FindAllChildren(c => c.ByProcessId(processId))];
-        
-                
-        if (windows.Count == 0) {
-            Console.WriteLine("No windows found on desktop, trying alternative search");
-            var vdesktopWin = FlaUI.Core.Application.Attach(processId).GetMainWindow(automation, TimeSpan.FromSeconds(3));
-            if (vdesktopWin != null) {
-                    windows.Add(vdesktopWin);
-            }
-        }
-        
-
-        AutomationElement? amSongPanel = null;
-        bool isMiniPlayer = false;
-        foreach (var window in windows)
-        {
-            isMiniPlayer = window.Name == "Mini Player";
-            if (isMiniPlayer)
-            {
-                amSongPanel = window.FindFirstDescendant(cf => cf.ByClassName("InputSiteWindowClass"));
-                if (amSongPanel != null)
-                {
-                    break;
-                }
-            }
-            else
-            {
-                amSongPanel = window.FindFirstDescendant(cf => cf.ByAutomationId("TransportBar")) ?? amSongPanel;
-            }
-        }
-
-        if (amSongPanel == null)
-        {
-            Console.WriteLine("Couldn't find songpanel");
-            return null;
-        }
-
-        var songFieldsPanel = isMiniPlayer ? amSongPanel : amSongPanel.FindFirstChild("LCD");
-        var songFields = songFieldsPanel?.FindAllChildren(cf => cf.ByAutomationId("myScrollViewer")) ?? [];
-
-        if (!isMiniPlayer && songFields.Length != 2)
-        {
-            Console.WriteLine(("nothing playing"));
-            return new SongData();
-        }
-
-        var songNameElement = songFields[0];
-        var songAlbumArtistElement = songFields[1];
-
-        if (songNameElement.BoundingRectangle.Bottom > songAlbumArtistElement.BoundingRectangle.Bottom)
-        {
-            songNameElement = songFields[1];
-            songAlbumArtistElement = songFields[0];
-        }
-
-        var songName = songNameElement.Name;
-        var songAlbumArtist = songAlbumArtistElement.Name;
-
-        string songArtist = "";
-        string songAlbum = "";
-        var songSplit = songAlbumArtist.Split(" \u2014 ");
-        if (songSplit.Length > 1)
-        {
-            songArtist = songSplit[0];
-            songAlbum = songSplit[1];
-        }
-        else
-        {
-            songArtist = songSplit[0];
-            songAlbum = songSplit[0];
-        }
-        
-        var playPauseButton = amSongPanel.FindFirstChild("TransportControl_PlayPauseStop");
-        var isPaused = playPauseButton!.Name == "Play";
-        
-        return new SongData(songName, songArtist, songAlbum, isPaused);
-    }
-
     static async Task StartWindows()
     {
        var currentSong = new SongData();
@@ -290,7 +199,7 @@ class Program
        var i = 0;
        while (true)
        {
-           var newSong = GetAppleMusicInfoWindows();
+           var newSong = WindowsMethods.GetAppleMusicInfo();
 
            if (newSong.Name == currentSong.Name && newSong.IsPaused == currentSong.IsPaused)
            {
@@ -380,67 +289,6 @@ class Program
            i++;
        }
     }
-
-    static async Task<SongData> GetAppleMusicInfoMac()
-    {
-        /*const string appleScript = $"""
-                                    set output to ""
-                                    tell application "Music"
-                                        set t_name to name of current track
-                                        set t_artist to artist of current track
-                                        set t_album to album of current track
-                                        set output to "" & "
-                                    " & t_name & "
-                                    " & t_artist & "
-                                    " & t_album & "
-                                    "
-                                    end tell
-                                    return output
-                                    """;*/
-        
-        var startInfo = new ProcessStartInfo
-        {
-            FileName = "/usr/bin/osascript",
-            Arguments = $"{AppDomain.CurrentDomain.BaseDirectory + "native.scpt"}",
-            UseShellExecute = false,
-            RedirectStandardOutput = true,
-            RedirectStandardError = true,
-            CreateNoWindow = true
-        };
-        
-        try
-        {
-            Process process = new Process { StartInfo = startInfo };
-            process.Start();
-            
-            string result = await process.StandardOutput.ReadToEndAsync();
-            result = result.Trim();
-            
-            string error = await process.StandardError.ReadToEndAsync();
-
-            await process.WaitForExitAsync();
-
-            if (process.ExitCode != 0)
-            {
-                throw new Exception($"osascript failed with exit code {process.ExitCode}: {error.Trim()}");
-            }
-
-            var lines = result.Replace("\r", "").Split(Environment.NewLine, StringSplitOptions.RemoveEmptyEntries)
-                .Select(s => s.Trim()).ToArray();
-            if (lines.Length < 3)
-            {
-                return new SongData();
-            }
-
-            var isPaused = lines[3] != "playing";
-            return new SongData(lines[0], lines[1], lines[2], isPaused);
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"An error occurred: {ex.Message}");
-            return new SongData();
-        }
-    }
     
     static async Task StartMac()
     {
@@ -449,7 +297,7 @@ class Program
        var i = 0;
        while (true)
        {
-           var newSong = await GetAppleMusicInfoMac();
+           var newSong = await MacMethods.GetAppleMusicInfo();
            if (newSong.Name == null) newSong.IsPaused = true;
 
            if (newSong.Name == currentSong.Name && newSong.IsPaused == currentSong.IsPaused)
