@@ -24,7 +24,7 @@ public class MacMethods
         var startInfo = new ProcessStartInfo
         {
             FileName = "/usr/bin/osascript",
-            Arguments = $"{AppDomain.CurrentDomain.BaseDirectory + "native.scpt"}",
+            Arguments = $"{AppDomain.CurrentDomain.BaseDirectory + "applemusic_mac.scpt"}",
             UseShellExecute = false,
             RedirectStandardOutput = true,
             RedirectStandardError = true,
