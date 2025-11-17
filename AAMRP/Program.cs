@@ -192,6 +192,24 @@ public class Program
         }
     }
 
+    static async void UpdatePresence(string song, string artist, string album, string albumUrl, string artistUrl)
+    {
+        RpcClient!.SetPresence(new RichPresence
+        {
+            Type = ActivityType.Listening,
+            Details = song,
+            State = artist,
+            Assets = new Assets()
+            {
+                LargeImageKey = albumUrl,
+                LargeImageText = album,
+                SmallImageKey = artistUrl,
+                SmallImageText = artist
+            }
+        });
+        await Task.Delay(15000);
+    }
+
     static async Task StartWindows()
     {
        var currentSong = new SongData();
@@ -226,37 +244,12 @@ public class Program
                 
                var result = await FetchArtworkUrl(song, album, artist);
                // var artistUrl = await FetchArtistArtworkUrl(result.ArtistUrl);
-               RpcClient!.SetPresence(new RichPresence
-               {
-                   Type = ActivityType.Listening,
-                   Details = song,
-                   State = artist,
-                   Assets = new Assets()
-                   {
-                       LargeImageKey = result.AlbumArt,
-                       LargeImageText = album,
-                       SmallImageKey = result.ArtistUrl,
-                       SmallImageText = artist
-                   }
-               });
+               UpdatePresence(song, artist, album, result.AlbumArt, result.ArtistUrl);
 
                if (albumIsSame && i != 0 && objectUrl != "")
                {
                    // avoid checking for animated cover again
-                   RpcClient.SetPresence(new RichPresence
-                   {
-                       Type = ActivityType.Listening,
-                       Details = song,
-                       State = artist,
-                       Assets = new Assets()
-                       {
-                           LargeImageKey = objectUrl,
-                           LargeImageText = album,
-                           SmallImageKey = result.ArtistUrl,
-                           SmallImageText = artist
-                       }
-                   });
-                   await Task.Delay(5000);
+                   UpdatePresence(song, artist, album, objectUrl, result.ArtistUrl);
                    i++;
                    continue;
                }
@@ -268,19 +261,7 @@ public class Program
                    if (objectUrl != String.Empty)
                    {
                        Console.WriteLine($"Updating RPC to {objectUrl}");
-                       RpcClient.SetPresence(new RichPresence
-                       {
-                           Type = ActivityType.Listening,
-                           Details = song,
-                           State = artist,
-                           Assets = new Assets()
-                           {
-                               LargeImageKey = objectUrl,
-                               LargeImageText = album,
-                               SmallImageKey = result.ArtistUrl,
-                               SmallImageText = artist
-                           }
-                       });
+                       UpdatePresence(song, artist, album, objectUrl, result.ArtistUrl);
                    }
                }
            }
@@ -325,37 +306,12 @@ public class Program
                 
                var result = await FetchArtworkUrl(song, album, artist);
                // var artistUrl = await FetchArtistArtworkUrl(result.ArtistUrl);
-               RpcClient!.SetPresence(new RichPresence
-               {
-                   Type = ActivityType.Listening,
-                   Details = song,
-                   State = artist,
-                   Assets = new Assets()
-                   {
-                       LargeImageKey = result.AlbumArt,
-                       LargeImageText = album,
-                       SmallImageKey = result.ArtistUrl,
-                       SmallImageText = artist
-                   }
-               });
+               UpdatePresence(song, artist, album, result.AlbumArt, result.ArtistUrl);
 
                if (albumIsSame && i != 0 && objectUrl != "")
                {
                    // avoid checking for animated cover again
-                   RpcClient.SetPresence(new RichPresence
-                   {
-                       Type = ActivityType.Listening,
-                       Details = song,
-                       State = artist,
-                       Assets = new Assets()
-                       {
-                           LargeImageKey = objectUrl,
-                           LargeImageText = album,
-                           SmallImageKey = result.ArtistUrl,
-                           SmallImageText = artist
-                       }
-                   });
-                   await Task.Delay(5000);
+                   UpdatePresence(song, artist, album, objectUrl, result.ArtistUrl);
                    i++;
                    continue;
                }
@@ -367,19 +323,7 @@ public class Program
                    if (objectUrl != String.Empty)
                    {
                        Console.WriteLine($"Updating RPC to {objectUrl}");
-                       RpcClient.SetPresence(new RichPresence
-                       {
-                           Type = ActivityType.Listening,
-                           Details = song,
-                           State = artist,
-                           Assets = new Assets()
-                           {
-                               LargeImageKey = objectUrl,
-                               LargeImageText = album,
-                               SmallImageKey = result.ArtistUrl,
-                               SmallImageText = artist
-                           }
-                       });
+                       UpdatePresence(song, artist, album, objectUrl, result.ArtistUrl);
                    }
                }
            }
