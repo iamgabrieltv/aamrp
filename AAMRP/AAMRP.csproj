@@ -2,11 +2,11 @@
 
     <PropertyGroup>
         <OutputType>Exe</OutputType>
-        <TargetFrameworks>net9.0-windows;net9.0-macos</TargetFrameworks>
+        <TargetFrameworks>net10.0-windows;net10.0-macos</TargetFrameworks>
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
         <Configurations>Debug;Release;Windows;MacOS</Configurations>
-        <Platforms>AnyCPU;net9.0-windows;net9.0-macos</Platforms>
+        <Platforms>AnyCPU;net10.0-windows;net10.0-macos</Platforms>
     </PropertyGroup>
 
     <ItemGroup>
